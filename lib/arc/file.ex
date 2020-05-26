@@ -1,4 +1,6 @@
 defmodule Arc.File do
+  require Logger
+
   defstruct [:path, :file_name, :binary]
 
   def generate_temporary_path(file \\ nil) do
@@ -16,6 +18,8 @@ defmodule Arc.File do
   def new(remote_path = "http" <> _) do
     uri = URI.parse(remote_path)
     filename = Path.basename(uri.path)
+
+    Logger.info("Processing image with path: #{remote_path}")
 
     case save_file(uri, filename) do
       {:ok, local_path} -> %Arc.File{path: local_path, file_name: filename}
@@ -96,15 +100,21 @@ end
   end
 
   defp request(remote_path, options, tries \\ 0) do
-    case :hackney.get(URI.to_string(remote_path), [], "", options) do
+    uri_string = URI.to_string(remote_path)
+    case :hackney.get(uri_string, [], "", options) do
       {:ok, 200, _headers, client_ref} -> :hackney.body(client_ref)
       {:error, %{reason: :timeout}} ->
+        Logger.info("Timeout for uri: #{uri_string}")
         case retry(tries, options) do
           {:ok, :retry} -> request(remote_path, options, tries + 1)
-          {:error, :out_of_tries} -> {:error, :timeout}
+          {:error, :out_of_tries} ->
+            Logger.info("Out of retries, uri: #{uri_string}")
+            {:error, :timeout}
         end
 
-      _ -> {:error, :arc_httpoison_error}
+      hackney_result ->
+        Logger.info("Failed hackney result: #{inspect(hackney_result)}, uri: #{uri_string}")
+        {:error, :arc_httpoison_error}
     end
   end
 
