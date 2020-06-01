@@ -23,7 +23,7 @@ defmodule Arc.File do
 
     case save_file(uri, filename) do
       {:ok, local_path} -> %Arc.File{path: local_path, file_name: filename}
-      :error -> {:error, :invalid_file_path}
+      {:error, error} -> {:error, error}
     end
 end
 
@@ -67,7 +67,7 @@ end
 
     case save_temp_file(local_path, uri) do
       :ok -> {:ok, local_path}
-      _ -> :error
+      {:error, error} -> {:error, error}
     end
   end
 
